@@ -295,12 +295,10 @@ def chat():
 
 
 # ---------------- Run ----------------
-# ---------------- Run ----------------
 if __name__ == "__main__":
-    print("App starting…")
-
-    # Render-friendly host + port
-    port = int(os.environ.get("PORT", 5000))
-    host = "0.0.0.0"
-
-    app.run(host=host, port=port)
+    print("✅ Model and intents loaded.")
+    if _gemini_ready:
+        print("✅ Gemini ready.")
+    else:
+        print("⚠️ Gemini not available — using fallback.")
+    app.run(host="127.0.0.1", port=5000, debug=True)
