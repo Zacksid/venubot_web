@@ -7,6 +7,4 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: GEMINI_API_KEY
-        sync: false    # Add in Render dashboard
-    autoDeploy: true
-    plan: free
+        sync: false
