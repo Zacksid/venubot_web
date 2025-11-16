@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+instance/
+*.sqlite3
+*.h5         # if you plan to host model elsewhere
+*.pkl
+.DS_Store
