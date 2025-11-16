@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 import nltk
 from nltk.stem import WordNetLemmatizer
-from keras.models import load_model
+# removed: from keras.models import load_model
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -49,13 +49,41 @@ except Exception:
     nltk.download('wordnet', download_dir=nltk_data_path, quiet=True)
     nltk.download('omw-1.4', download_dir=nltk_data_path, quiet=True)
 
-# ---------------- Load model + intents ----------------
+# ---------------- Load intents + words/classes ----------------
 with INTENTS_PATH.open(encoding="utf-8") as f:
     intents = json.load(f)
 
 words = pickle.load(open(WORDS_PKL, "rb"))
 classes = pickle.load(open(CLASSES_PKL, "rb"))
-model = load_model(MODEL_FILE)
+
+# ---------------- Lazy model loader (uses tensorflow.keras when available) ----------------
+_model = None
+
+def load_my_model(path=str(MODEL_FILE)):
+    """
+    Lazily load and cache the Keras model.
+    Prefers tensorflow.keras; falls back to standalone keras if necessary.
+    """
+    global _model
+    if _model is not None:
+        return _model
+
+    try:
+        # prefer tensorflow.keras (recommended)
+        from tensorflow.keras.models import load_model as _tf_load_model
+        _model = _tf_load_model(path)
+        return _model
+    except Exception as e_tf:
+        # try fallback to standalone keras (may still fail if TF isn't installed)
+        try:
+            from keras.models import load_model as _k_load_model
+            _model = _k_load_model(path)
+            return _model
+        except Exception as e_k:
+            # raise a helpful error so deploy logs show what happened
+            print("Error loading model with tensorflow.keras:", e_tf)
+            print("Fallback error loading model with keras:", e_k)
+            raise RuntimeError("Failed to load model with tensorflow.keras and keras.") from e_k
 
 # ---------------- Gemini setup ----------------
 import google.generativeai as genai
@@ -115,6 +143,11 @@ def bag_of_words(sentence):
     return np.array(bag, dtype=np.float32)
 
 def predict_class(sentence, threshold=0.25):
+    """
+    Ensure model is loaded when predicting. This prevents import-time crashes
+    and delays model loading until it's actually needed.
+    """
+    model = load_my_model(str(MODEL_FILE))
     bow = bag_of_words(sentence)
     res = model.predict(np.array([bow]), verbose=0)[0]
     results = [[i, r] for i, r in enumerate(res) if r > threshold]
@@ -273,9 +306,10 @@ def chat():
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    print("✅ Model and intents loaded.")
+    print("✅ Intents and helper data loaded. Model will be loaded on first request.")
     if _gemini_ready:
         print("✅ Gemini ready.")
     else:
         print("⚠️ Gemini not available — using fallback.")
     app.run(host="0.0.0.0", port=5000)
+
