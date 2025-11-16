@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: venu-bot
+    env: python
+    runtime: python3.10
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python -m nltk.downloader punkt wordnet omw-1.4
+    startCommand: gunicorn app:app
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false    # Add in Render dashboard
+    autoDeploy: true
+    plan: free
